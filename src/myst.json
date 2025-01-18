@@ -1,0 +1,42 @@
+{
+  "name": "Myst Node",
+  "type": 5,
+  "icon": "hub",
+  "class_name": "myst",
+  "module": "myst",
+  "cloud": true,
+  "support_autoupdate": true,
+  "autoupdate_interval": 15000,
+  "mac_address": true,
+  "capabilities": [
+    {
+      "ident": "motion"
+    }
+  ],
+  "sort_index": 5,
+  "preview": true,
+  "power_switch": true,
+  "commands": [
+    {
+      "command": "preview"
+    }
+  ],
+  "display": [
+    {
+      "functions": [
+        {
+          "view": "vpn",
+          "type": "vpn"
+        }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "key": "location",
+      "name": "Location",
+      "type": "google-map",
+      "required": true
+    }
+  ]
+}
