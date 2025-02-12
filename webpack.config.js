@@ -11,9 +11,42 @@ module.exports = {
   },
   externals: [
     function (context, request, callback) {
-      if (["assert", "tar", "buffer", "child_process", "curve25519-n2", "crypto", "dgram", "decimal.js", "ed25519", "events",
-        "fast-srp-hap", "fs", "getmac", "http", "mdns", "mqtt", "net", "noble", "noble-mac", "os", "path", "sequelize",
-        "sodium", "tls", "url", "util", "uws", "zigbee-herdsman", "modbus-serial", "openzwave-shared", "serialport", "socket.io", "ws", "yaml"
+      if ([
+        "assert",
+        "tar",
+        "buffer",
+        "child_process",
+        "curve25519-n2",
+        "crypto",
+        "dgram",
+        "decimal.js",
+        "ed25519",
+        "events",
+        "fast-srp-hap",
+        "fs",
+        "getmac",
+        "http",
+        "mdns",
+        "mqtt",
+        "net",
+        "noble",
+        "noble-mac",
+        "os",
+        "path",
+        "sequelize",
+        "sodium",
+        "tls",
+        "url",
+        "util",
+        "uws",
+        "zigbee-herdsman",
+        "modbus-serial",
+        "openzwave-shared",
+        "serialport",
+        "socket.io",
+        "ws",
+        "node-ipc",
+        "yaml"
       ].indexOf(request) !== -1) {
         return callback(null, `require('${request}')`);
       } else if (request.indexOf("../config/config") !== -1) {
