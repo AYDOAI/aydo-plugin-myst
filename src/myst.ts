@@ -10,7 +10,7 @@ let aydoMystProcess: any;
 
 class Myst extends baseDriverModule {
   mystDir = mystDir;
-  mystVersion = "1.31.4";
+  mystVersion = "1.33.10";
   mystBaseUrl = "https://github.com/mysteriumnetwork/node/releases/download";
 
   // get configFile() {
