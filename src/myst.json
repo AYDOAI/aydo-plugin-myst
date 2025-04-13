@@ -1,5 +1,6 @@
 {
   "name": "Myst Node",
+  "description": "To configure your myst node, please navigate to the following link: http://YOUR_AYDO_HUB_IP:4449",
   "type": 5,
   "icon": "hub",
   "class_name": "myst",
