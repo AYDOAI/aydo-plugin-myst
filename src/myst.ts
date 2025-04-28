@@ -1,8 +1,18 @@
 import {baseDriverModule} from '../core/base-driver-module';
 import {inspect} from 'util';
 
+const os = require('os');
+const path = require('path');
+const mystDir = path.join(os.homedir(), '.aydo', 'myst').replace(/\\/g, '/');
+
+let aydoMystProcess: any;
+
 
 class Myst extends baseDriverModule {
+  mystDir = mystDir;
+  mystVersion = "1.33.10";
+  mystBaseUrl = "https://github.com/mysteriumnetwork/node/releases/download";
+
   // get configFile() {
   //   return '/config/myst';
   // }
@@ -18,32 +28,70 @@ class Myst extends baseDriverModule {
     const arch = os.arch();
 
     if (
-      fs.existsSync(`/etc/default/mysterium-node`) && 
-      fs.existsSync(`/usr/bin/myst`) &&
-      fs.existsSync(`/etc/mysterium-node/config-mainnet.toml`) 
+      fs.existsSync(`${this.mystDir}/myst`)
     ) {
       this.app.log('Myst already installed');
       return resolve({});
     }
 
     super.installDeviceEx(() => {
-      this.app.log('Myst will be install');
+      let arch2 = arch
+      if (arch == 'x64') {
+        arch2 = 'amd64'
+      }
 
-      const {exec} = require('child_process');
-      const command = 'wget -qO- "https://raw.githubusercontent.com/mysteriumnetwork/node/master/install.sh" | bash'
+      if (platform == 'linux' && arch == 'arm64') {
+        arch2 = 'arm'
+      }
 
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          this.app.log(`Error executing command:\n${error.message}`);
-        }
+      const mystFile = `myst_${platform}_${arch2}.tar.gz`
+      const mystFileUrl = `${this.mystBaseUrl}/${this.mystVersion}/${mystFile}`
 
-        if (stderr) {
-          this.app.log(`Error during execution:\n${stderr}`);
-        }
+      if (this.logging) {
+        this.log('Myst install, platform: ', platform, ', arch: ', arch);
+        this.log('Myst file: ', mystFile);
+        this.log('Myst file url: ', mystFileUrl);
+      }
 
-        this.app.log(`Execution result:\n${stdout}`);
+      const http = require('follow-redirects').https;
 
-        resolve({});
+      fs.mkdirSync(this.mystDir, {recursive: true});
+
+      let that = this;
+
+      const file = fs.createWriteStream(`${this.mystDir}/${mystFile}`);
+      const request = http.get(mystFileUrl, function (response) {
+        response.pipe(file);
+
+        file.on("finish", () => {
+          file.close();
+          if (that.logging) {
+            that.log('Download Myst completed');
+          }
+
+          const tar = require('tar');
+          tar.x({
+            gzip: true,
+            C: `${that.mystDir}/`,
+            file: `${that.mystDir}/${mystFile}`,
+            sync: true
+          });
+
+          if (that.logging) {
+            that.log('Myst decompressed');
+          }
+
+          fs.unlink(`${that.mystDir}/${mystFile}`, (err) => {
+            if (err) throw err;
+
+            if (that.logging) {
+              that.log('Myst archive was deleted');
+            }
+
+            // that.createConfig();
+            resolve({});
+          });
+        });
       });
     }, reject);
   }
@@ -53,9 +101,7 @@ class Myst extends baseDriverModule {
     const fs = require('fs');
 
     if (
-      fs.existsSync(`/etc/default/mysterium-node`) === false ||
-      fs.existsSync(`/usr/bin/myst`) === false ||
-      fs.existsSync(`/etc/mysterium-node/config-mainnet.toml`) === false
+      fs.existsSync(`${this.mystDir}/myst`) === false
     ) {
       this.app.log('Myst not installed');
       return resolve({});
@@ -77,67 +123,78 @@ class Myst extends baseDriverModule {
   async createConfig(): Promise<void> {
     const fs = require('fs');
 
-    const configFilePath = '/etc/default/mysterium-node';
-    const vendorOption = '--vendor.id=AYDO';
+    const configFilePath = `${this.mystDir}/config/config-mainnet.toml`;
 
     try {
-      const fileContent = await fs.promises.readFile(configFilePath, 'utf8');
+      const configData = `active-services = ""
 
-      const lines = fileContent.split('\n');
-      let updated = false;
+[mmn]
+  api-key = "06X15Y8aXDTa8aUAzRxod8Yej2KJ2tQTAQGNKSzm"
 
-      const updatedLines = lines.map(line => {
-        if (line.startsWith('DAEMON_OPTS=')) {
-          if (!line.includes(vendorOption)) {
-            const updatedLine = line.replace(
-              /DAEMON_OPTS="(.*?)"/,
-              `DAEMON_OPTS="$1 ${vendorOption}"`
-            );
-            updated = true;
-            return updatedLine;
-          }
-        }
-        return line;
-      });
+[node]
+  version = "11908038475"
 
-      if (!updated) {
-        this.app.log('No changes needed. The file already contains the required parameters.');
-        return;
-      }
+[terms]
+  consumer-agreed = true
+  provider-agreed = true
+  version = "0.0.53"
 
-      const updatedContent = updatedLines.join('\n');
+[ui-terms]
+  agreedat = "2025-01-04"
+  agreedtoversion = "0.0.53"
+`;
 
-      await fs.promises.writeFile(configFilePath, updatedContent, 'utf8');
+      await fs.promises.writeFile(configFilePath, configData, 'utf8');
       this.app.log('Configuration file updated successfully.');
+
+      return;
     } catch (error) {
       this.app.error('An error occurred while updating the configuration file:', error);
     }
   }
 
-  createService(): void {
-    const {spawn} = require('child_process');
-    spawn('systemctl daemon-reload');
-    spawn('systemctl start mysterium-node');
-    spawn('systemctl enable mysterium-node.service');
-  }
-
   startService(): void {
+    this.app.log('Myst will be start');
+
     const {spawn} = require('child_process');
-    const myst = spawn(
-      'service',
-      ['mysterium-node', 'restart']
+    aydoMystProcess = spawn(
+      `${this.mystDir}/myst`,
+      [
+        `--config-dir=${this.mystDir}/config`,
+        `--script-dir=${this.mystDir}/config`,
+        `--data-dir=${this.mystDir}/data`,
+        `--runtime-dir=${this.mystDir}/run`,
+        `--keystore.lightweight`,
+        `--vendor.id=AYDO`,
+        `daemon`
+      ],
+      {
+        shell: true,
+      }
     );
 
     if (this.logging) {
       this.app.log('Myst was started');
     }
+
+    aydoMystProcess.stdout.on('data', (data: any) => {
+      console.log(`MYST: ${data}`);
+    });
+
+    aydoMystProcess.stderr.on('data', (data: any) => {
+      console.error(`MYST: Error - ${data}`);
+    });
+
+    aydoMystProcess.on('close', (code: any) => {
+      console.log(`MYST: exited with code - ${code}`);
+    });
   }
 
   checkRun() {
     const ps = require('ps-node');
 
     ps.lookup({
-      command: `/usr/bin/myst`,
+      command: `${this.mystDir}/myst`,
       psargs: ''
     }, function (err, resultList) {
       if (err) {
@@ -145,7 +202,7 @@ class Myst extends baseDriverModule {
       }
 
       resultList.forEach(function (process) {
-        if (process && process.command == `/usr/bin/myst`) {
+        if (process && process.command == `${this.mystDir}/myst`) {
           return true;
         }
       });
@@ -237,6 +294,17 @@ class Myst extends baseDriverModule {
     });
   }
 }
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received. Terminating all processes.');
+
+  aydoMystProcess.kill('SIGTERM');
+
+  aydoMystProcess.on('exit', () => {
+    console.log('Myst process terminated. Terminating application.');
+    process.exit(0);
+  });
+});
 
 process.on('uncaughtException', (err) => {
   console.error(`${err ? err.message : inspect(err)}`);
