@@ -103,49 +103,4 @@ export class MystRegisterNodeService {
             beneficiaryRegistered
         };
     }
-
-    async monitorAndRun(beneficiaryWallet, registrationTriggered, monitorInterval) {
-        try {
-            const identityId = await this.getIdentityId();
-            const state = await this.getNodeState();
-
-            const identities = state?.payload?.identities || [];
-            const found = identities.find((i: any) => i.id === identityId);
-
-            if (!found) {
-                console.log(`[monitor] Identity ${identityId} not found in node state`);
-                return;
-            }
-
-            console.log(`[monitor] Identity found:`, found);
-
-            if (found.registration_status === 'Unregistered') {
-                if (!registrationTriggered) {
-                    registrationTriggered = true;
-                    console.log(`[monitor] Identity ${identityId} is Unregistered, running registration...`);
-                    try {
-                        const result = await this.run(beneficiaryWallet);
-                        console.log('[monitor] Registration result:', result);
-                    } catch (err) {
-                        console.error('[monitor] Registration failed:', err);
-                    }
-                } else {
-                    console.log('[monitor] Registration already triggered, skipping...');
-                }
-            } else if (
-                found.registration_status === 'InProgress' ||
-                found.registration_status === 'Registered'
-            ) {
-                console.log(`[monitor] Registration status is ${found.registration_status}, stopping monitor interval.`);
-                if (monitorInterval) {
-                    clearInterval(monitorInterval);
-                    monitorInterval = null;
-                }
-            } else {
-                console.log(`[monitor] Identity ${identityId} status: ${found.registration_status}`);
-            }
-        } catch (err) {
-            console.error('[monitor] Error in monitorAndRun:', err);
-        }
-    }
 }
