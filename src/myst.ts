@@ -1,5 +1,6 @@
 import {baseDriverModule} from '../core/base-driver-module';
 import {inspect} from 'util';
+import {MystRegisterNodeService} from './services/myst-register-node.service';
 
 const os = require('os');
 const path = require('path');
@@ -10,8 +11,11 @@ let aydoMystProcess: any;
 
 class Myst extends baseDriverModule {
   mystDir = mystDir;
-  mystVersion = "1.33.10";
+  mystVersion = "1.34.1";
   mystBaseUrl = "https://github.com/mysteriumnetwork/node/releases/download";
+
+  registrationTriggered = false;
+  monitorInterval: NodeJS.Timeout | null = null;
 
   // get configFile() {
   //   return '/config/myst';
@@ -115,38 +119,17 @@ class Myst extends baseDriverModule {
           this.app.log('Myst not running');
         }
 
+        this.monitorInterval = setInterval(this.monitorAndRegisterNode, 60_000);
+        this.monitorAndRegisterNode();
+
         resolve({});
       });
     }, reject);
   }
 
   async createConfig(): Promise<void> {
-    const fs = require('fs');
-
-    const configFilePath = `${this.mystDir}/config/config-mainnet.toml`;
-
     try {
-      const configData = `active-services = ""
-
-[mmn]
-  api-key = "06X15Y8aXDTa8aUAzRxod8Yej2KJ2tQTAQGNKSzm"
-
-[node]
-  version = "11908038475"
-
-[terms]
-  consumer-agreed = true
-  provider-agreed = true
-  version = "0.0.53"
-
-[ui-terms]
-  agreedat = "2025-01-04"
-  agreedtoversion = "0.0.53"
-`;
-
-      await fs.promises.writeFile(configFilePath, configData, 'utf8');
       this.app.log('Configuration file updated successfully.');
-
       return;
     } catch (error) {
       this.app.error('An error occurred while updating the configuration file:', error);
@@ -164,9 +147,9 @@ class Myst extends baseDriverModule {
         `--script-dir=${this.mystDir}/config`,
         `--data-dir=${this.mystDir}/data`,
         `--runtime-dir=${this.mystDir}/run`,
-        `--keystore.lightweight`,
         `--vendor.id=AYDO`,
-        `daemon`
+        `--agreed-terms-and-conditions`,
+        `service`,
       ],
       {
         shell: true,
@@ -233,6 +216,52 @@ class Myst extends baseDriverModule {
     }, 15000);
 
     resolve({});
+  }
+
+  async monitorAndRegisterNode() {
+    const registerNodeService = new MystRegisterNodeService();
+    try {
+      const identityId = await registerNodeService.getIdentityId();
+      const state = await registerNodeService.getNodeState();
+
+      const identities = state?.payload?.identities || [];
+      const found = identities.find((i: any) => i.id === identityId);
+
+      if (!found) {
+        console.log(`[monitor] Identity ${identityId} not found in node state`);
+        return;
+      }
+
+      console.log(`[monitor] Identity found:`, found);
+
+      if (found.registration_status === 'Unregistered') {
+        if (!this.registrationTriggered) {
+          this.registrationTriggered = true;
+          console.log(`[monitor] Identity ${identityId} is Unregistered, running registration...`);
+          try {
+            const result = await registerNodeService.run(this.params.beneficiary_wallet);
+            console.log('[monitor] Registration result:', result);
+          } catch (err) {
+            console.error('[monitor] Registration failed:', err);
+          }
+        } else {
+          console.log('[monitor] Registration already triggered, skipping...');
+        }
+      } else if (
+        found.registration_status === 'InProgress' ||
+        found.registration_status === 'Registered'
+      ) {
+        console.log(`[monitor] Registration status is ${found.registration_status}, stopping monitor interval.`);
+        if (this.monitorInterval) {
+          clearInterval(this.monitorInterval);
+          this.monitorInterval = null;
+        }
+      } else {
+        console.log(`[monitor] Identity ${identityId} status: ${found.registration_status}`);
+      }
+    } catch (err) {
+      console.error('[monitor] Error in monitorAndRegisterNode:', err);
+    }
   }
 
   commandEx(command, value, params, options, resolve, reject, status) {
