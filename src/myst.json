@@ -42,7 +42,7 @@
     {
       "key": "beneficiary_wallet",
       "name": "Beneficiary Wallet",
-      "type": "string",
+      "type": "text",
       "required": true
     }
   ]

@@ -119,8 +119,10 @@ class Myst extends baseDriverModule {
           this.app.log('Myst not running');
         }
 
-        this.monitorInterval = setInterval(this.monitorAndRegisterNode, 60_000);
-        this.monitorAndRegisterNode();
+        this.monitorInterval = setInterval(() => {
+          this.monitorAndRegisterNode(this.params.beneficiary_wallet);
+        }, 30_000);
+        // this.monitorAndRegisterNode();
 
         resolve({});
       });
@@ -148,8 +150,8 @@ class Myst extends baseDriverModule {
         `--data-dir=${this.mystDir}/data`,
         `--runtime-dir=${this.mystDir}/run`,
         `--vendor.id=AYDO`,
-        `--agreed-terms-and-conditions`,
         `service`,
+        '--agreed-terms-and-conditions',
       ],
       {
         shell: true,
@@ -165,7 +167,7 @@ class Myst extends baseDriverModule {
     });
 
     aydoMystProcess.stderr.on('data', (data: any) => {
-      console.error(`MYST: Error - ${data}`);
+      console.error(`MYST: ${data}`);
     });
 
     aydoMystProcess.on('close', (code: any) => {
@@ -218,7 +220,7 @@ class Myst extends baseDriverModule {
     resolve({});
   }
 
-  async monitorAndRegisterNode() {
+  async monitorAndRegisterNode(beneficiaryWallet: string) {
     const registerNodeService = new MystRegisterNodeService();
     try {
       const identityId = await registerNodeService.getIdentityId();
@@ -239,7 +241,8 @@ class Myst extends baseDriverModule {
           this.registrationTriggered = true;
           console.log(`[monitor] Identity ${identityId} is Unregistered, running registration...`);
           try {
-            const result = await registerNodeService.run(this.params.beneficiary_wallet);
+            console.log('[monitor] Beneficiary Wallet:', beneficiaryWallet);
+            const result = await registerNodeService.run(beneficiaryWallet);
             console.log('[monitor] Registration result:', result);
           } catch (err) {
             console.error('[monitor] Registration failed:', err);
