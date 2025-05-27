@@ -12,6 +12,7 @@
     "url": "https://github.com/AYDOAI/aydo-plugin-myst"
   },
   "dependencies": {
+    "axios": "^1.9.0",
     "follow-redirects": "^1.15.9",
     "moment": "^2.27.0",
     "mustache": "^4.2.0",

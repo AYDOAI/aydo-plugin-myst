@@ -1,6 +1,6 @@
 {
   "name": "Myst Node",
-  "description": "To configure your myst node, please navigate to the following link: http://YOUR_AYDO_HUB_IP:4449",
+  "description": "Myst Node Plugin installs and runs a Mysterium node on your AYDO hub, enabling token rewards for sharing your bandwidth securely.",
   "type": 5,
   "icon": "hub",
   "class_name": "myst",
@@ -37,6 +37,12 @@
       "key": "location",
       "name": "Location",
       "type": "google-map",
+      "required": true
+    },
+    {
+      "key": "beneficiary_wallet",
+      "name": "Beneficiary Wallet",
+      "type": "text",
       "required": true
     }
   ]
