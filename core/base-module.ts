@@ -24,6 +24,7 @@ export const baseModule = toExtendable(class baseModule extends EventEmitter {
     }
 
     this.requireEx = new RequireEx();
+    console.log('nodeINiT')
     this.ipc = require('node-ipc').default;
 
     this.ipc.config.id = this.id;

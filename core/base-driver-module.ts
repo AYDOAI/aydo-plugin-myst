@@ -37,13 +37,20 @@ export const baseDriverModule = toExtendable(class baseDriverModule extends base
   constructor() {
     super();
     this.pluginName = process.argv[1].replace(path.extname(process.argv[1]), '.json');
+    console.log(this.pluginName)
     if (fs.existsSync(this.pluginName)) {
-      this.pluginTemplate = eval(`require('${this.pluginName}')`);
+
+      this.pluginTemplate = this.loadTemplate2('',this.pluginName);
     } else {
       this.pluginTemplate = {};
+
     }
   }
-
+  loadTemplate2(templatePath: string, file: string) {
+    const fullPath = path.join(templatePath, file);
+    const content = fs.readFileSync(fullPath, 'utf8');
+    return JSON.parse(content);
+  }
   get loadConfig() {
     return false;
   }
