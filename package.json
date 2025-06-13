@@ -5,6 +5,7 @@
   "main": "src/myst.ts",
   "scripts": {
     "build": "NODE_OPTIONS=--openssl-legacy-provider webpack",
+    "build:win": "cross-env NODE_OPTIONS=--openssl-legacy-provider webpack",
     "debug": "nodemon --config nodemon.json"
   },
   "repository": {
@@ -12,7 +13,9 @@
     "url": "https://github.com/AYDOAI/aydo-plugin-myst"
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "axios": "^1.9.0",
+    "cross-env": "^7.0.3",
     "follow-redirects": "^1.15.9",
     "moment": "^2.27.0",
     "mustache": "^4.2.0",
