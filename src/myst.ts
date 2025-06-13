@@ -39,17 +39,21 @@ class Myst extends baseDriverModule {
     }
 
     super.installDeviceEx(() => {
-      let arch2 = arch
-      if (arch == 'x64') {
-        arch2 = 'amd64'
-      }
+      const archMap: Record<string, string> = {
+        x64: 'amd64',
+        arm64: platform === 'linux' ? 'arm' : 'arm64',
+      };
 
-      if (platform == 'linux' && arch == 'arm64') {
-        arch2 = 'arm'
-      }
+      const arch2 = archMap[arch] || arch;
 
-      const mystFile = `myst_${platform}_${arch2}.tar.gz`
-      const mystFileUrl = `${this.mystBaseUrl}/${this.mystVersion}/${mystFile}`
+      const isWindows = platform === 'win32';
+      const mystFile = isWindows
+          ? 'myst_windows_amd64.zip'
+          : `myst_${platform}_${arch2}.tar.gz`;
+
+      const mystFileUrl = isWindows
+          ? `https://github.com/mysteriumnetwork/node/releases/download/${this.mystVersion}/${mystFile}`
+          : `${this.mystBaseUrl}/${this.mystVersion}/${mystFile}`;
 
       if (this.logging) {
         this.log('Myst install, platform: ', platform, ', arch: ', arch);
@@ -63,39 +67,44 @@ class Myst extends baseDriverModule {
 
       let that = this;
 
-      const file = fs.createWriteStream(`${this.mystDir}/${mystFile}`);
-      const request = http.get(mystFileUrl, function (response) {
+      fs.mkdirSync(this.mystDir, { recursive: true });
+      const archivePath = path.join(this.mystDir, mystFile);
+      const file = fs.createWriteStream(archivePath);
+      const request = http.get(mystFileUrl, response => {
         response.pipe(file);
-
-        file.on("finish", () => {
+        file.on('finish', () => {
           file.close();
-          if (that.logging) {
-            that.log('Download Myst completed');
-          }
 
-          const tar = require('tar');
-          tar.x({
-            gzip: true,
-            C: `${that.mystDir}/`,
-            file: `${that.mystDir}/${mystFile}`,
-            sync: true
-          });
-
-          if (that.logging) {
-            that.log('Myst decompressed');
-          }
-
-          fs.unlink(`${that.mystDir}/${mystFile}`, (err) => {
-            if (err) throw err;
-
-            if (that.logging) {
-              that.log('Myst archive was deleted');
+          try {
+            if (platform === 'win32') {
+              const AdmZip = require('adm-zip');
+              const zip = new AdmZip(archivePath);
+              zip.extractAllTo(this.mystDir, true);
+              this.log('Myst ZIP extracted');
+            } else {
+              const tar = require('tar');
+              tar.x({
+                gzip: true,
+                file: archivePath,
+                C: this.mystDir,
+                sync: true
+              });
+              this.log('Myst TAR extracted');
             }
 
-            // that.createConfig();
+            fs.unlinkSync(archivePath);
+            this.log('Myst archive deleted');
             resolve({});
-          });
+          } catch (err) {
+            this.error('Myst extraction failed', err);
+            reject(err);
+          }
         });
+      });
+
+      request.on('error', err => {
+        this.error('Myst download failed', err);
+        reject(err);
       });
     }, reject);
   }
