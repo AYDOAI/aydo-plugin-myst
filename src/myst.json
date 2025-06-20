@@ -9,6 +9,7 @@
   "support_autoupdate": true,
   "autoupdate_interval": 15000,
   "mac_address": true,
+  "standalone": true,
   "capabilities": [
     {
       "ident": "motion"
